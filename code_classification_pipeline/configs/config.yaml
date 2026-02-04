@@ -1,0 +1,128 @@
+# ============================================================
+# Code Classification Pipeline Configuration
+# ============================================================
+
+# Project Settings
+project:
+  name: "Code Language Classification Pipeline"
+  version: "1.0.0"
+  seed: 42
+
+# Data Paths
+data:
+  raw_data_path: "data/raw"
+  processed_data_path: "data/processed"
+  train_file: "train.parquet"
+  val_file: "val.parquet"
+  test_file: "test.parquet"
+
+# Model Paths
+models:
+  pretrained_dir: "models/pretrained"
+  checkpoint_dir: "models/checkpoints"
+
+  # Language Detection Model (Qwen LLM)
+  language_detector:
+    model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    max_length: 2048
+    temperature: 0.0
+    max_new_tokens: 10
+    supported_languages:
+      - "JavaScript"
+      - "PHP"
+      - "Java"
+      - "Python"
+      - "C#"
+      - "C++"
+      - "Go"
+      - "C"
+
+  # BERT Classifier (CodeBERT)
+  bert_classifier:
+    model_name: "microsoft/codebert-base"
+    max_length: 512
+    num_labels: 8
+    dropout: 0.1
+
+# Training Configuration
+training:
+  # Runtime Control
+  time_budget_hours: 9
+  safe_margin_min: 12
+
+  # Data Settings
+  train_max_rows: null # null = use all
+  val_max_rows: 20000
+  shuffle_train: true
+
+  # Training Hyperparameters
+  epochs: 4
+  batch_size: 16
+  gradient_accumulation_steps: 1
+  fp16: true
+
+  # Optimizer Settings
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+
+  # Loss Settings
+  label_smoothing: 0.05
+  use_class_weights: true
+
+  # Data Augmentation
+  crop_chars: 14000
+  train_crop_probs: [0.45, 0.45, 0.10] # head, tail, middle
+
+  # Advanced Training (FGM Adversarial)
+  use_fgm: false
+  fgm_eps: 0.6
+  fgm_start_frac: 0.85
+
+# Inference Configuration
+inference:
+  batch_size: 32
+  use_two_view: true # Average head + tail predictions
+  num_workers: 0
+
+# Pipeline Configuration
+pipeline:
+  stages:
+    - name: "language_detection"
+      enabled: true
+      model_type: "llm"
+
+    - name: "bert_classification"
+      enabled: true
+      model_type: "bert"
+      use_detected_language: true # Use language from stage 1
+
+  # Multi-model Ensemble
+  ensemble:
+    enabled: false
+    weights: [0.5, 0.5] # LLM, BERT
+
+# Evaluation Metrics
+evaluation:
+  metrics:
+    - "accuracy"
+    - "macro_f1"
+    - "weighted_f1"
+    - "confusion_matrix"
+  save_predictions: true
+  save_misclassified: true
+
+# Logging
+logging:
+  level: "INFO"
+  log_dir: "logs"
+  log_file: "pipeline.log"
+  save_tensorboard: true
+  tensorboard_dir: "logs/tensorboard"
+
+# Output Settings
+output:
+  results_dir: "results"
+  submission_file: "submission.csv"
+  save_model_after_epoch: true
